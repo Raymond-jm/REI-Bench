@@ -5,6 +5,7 @@ This repository is the **official evaluation codebase** for **REI-Bench**, from 
 ## 🤖 Authors
 
 **Chenxi Jiang**, **Chuhao Zhou**, **Jianfei Yang**
+
 [MARS Lab](https://marslab.tech/), Nanyang Technological University (NTU)
 
 ## 🧭 Introduction
