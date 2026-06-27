@@ -72,6 +72,13 @@ class TaskPlanner:
                                             getattr(cfg.planner, 'hf_auth_token', ''))
             model_args['use_auth_token'] = hf_auth_token
             
+            self.remote_url = (getattr(cfg.planner, 'remote_url', '') or '').rstrip('/')
+            if self.remote_url:
+                # Remote scoring (vLLM): skip local model load; only the prompt is needed.
+                self.planner_model = None
+                self.prompt = self.init_prompt(cfg)
+                return
+
             if cfg.planner.scoring_mode == 'guidance':
                 model_args.pop('pretrained_model_name_or_path')
                 if "gpt" in self.model_name:
@@ -146,6 +153,19 @@ class TaskPlanner:
 
 
     def score(self, prompt, skill_set):
+        if getattr(self, 'remote_url', ''):
+            # SayCan select via remote vLLM: constrained decoding over the skill set
+            # (temperature=0 greedy == argmax candidate, same as guidance `select`).
+            import requests
+            candidates = [s.strip() for s in skill_set]
+            r = requests.post(f"{self.remote_url}/v1/completions", json={
+                "model": self.model_name, "prompt": prompt,
+                "max_tokens": 16, "temperature": 0,
+                "structured_outputs": {"choice": candidates},
+            }, timeout=120)
+            r.raise_for_status()
+            return r.json()["choices"][0]["text"].strip()
+
         scores = {}
         batch_skill_set_list = [skill_set[chunk:chunk + self.scoring_batch_size] for chunk in
                                 range(0, len(skill_set), self.scoring_batch_size)]
