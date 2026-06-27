@@ -2,7 +2,6 @@ name: alfred
 
 defaults:
   - _self_
-  - task_difficulty: standard-explicit
 
 hydra:
   run:
@@ -18,6 +17,8 @@ data_types:
   - short-explicit
   - short-mixed
   - short-implicit
+
+data_type: null
 
 out_dir: ${hydra:run.dir}
 
@@ -46,7 +47,7 @@ prompt:
   example_file_path: "reibench/planners/prompts/alfred_examples_for_prompt.json"
 
 alfred:
-  x_display: '1'
+  x_display: '99'
   eval_set: 'valid_seen'
   eval_portion_in_percent: 5
   random_seed_for_eval_subset: 1

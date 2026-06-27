@@ -10,23 +10,25 @@ cd "$(dirname "$0")/.."
 export MESA_GL_VERSION_OVERRIDE=3.3
 export __GLX_VENDOR_LIBRARY_NAME=mesa
 
-# Prefer xvfb-run: auto-picks free display and passes GLX args
-if command -v xvfb-run >/dev/null 2>&1; then
-  exec xvfb-run -a -s "-screen 0 1024x768x24 +extension GLX +iglx +extension RENDER" python scripts/evaluate.py "$@"
-fi
+# Clean up zombie THOR/Xvfb from prior failed runs (they hold CPU/GPU/sockets and
+# make the next THOR start hang on its socket handshake)
+pkill -9 -f "thor-201909" 2>/dev/null || true
+pkill -9 -f "Xvfb" 2>/dev/null || true
+sleep 1
 
-# Fallback: start our own Xvfb on :99 (avoid :1 - often taken)
+# Find a free display number and start Xvfb
 DISPLAY_NUM="${DISPLAY_NUM:-99}"
-LOCK="/tmp/.X${DISPLAY_NUM}-lock"
-if [ -f "$LOCK" ]; then
-  OLD_PID=$(cat "$LOCK" 2>/dev/null)
-  if ! kill -0 "$OLD_PID" 2>/dev/null; then
-    rm -f "$LOCK"
+for d in $(seq $DISPLAY_NUM 120); do
+  if [ ! -f "/tmp/.X${d}-lock" ]; then
+    DISPLAY_NUM=$d
+    break
   fi
-fi
-if [ ! -f "$LOCK" ] || ! kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
-  Xvfb :${DISPLAY_NUM} +extension GLX +iglx +extension RENDER -screen 0 1024x768x24 &
-  sleep 2
-fi
+done
+
+Xvfb :${DISPLAY_NUM} +extension GLX +iglx +extension RENDER -screen 0 1024x768x24 &
+XVFB_PID=$!
+sleep 2
+trap "kill $XVFB_PID 2>/dev/null" EXIT
+
 export DISPLAY=:${DISPLAY_NUM}
-exec python scripts/evaluate.py "$@"
+exec python scripts/evaluate.py alfred.x_display="$DISPLAY_NUM" "$@"
